@@ -4,48 +4,32 @@
     <title>Mappls Distance POC</title>
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <style>
-        body {
-            font-family: sans-serif;
-            padding: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            box-sizing: border-box;
-        }
-        #results {
-            margin-top: 20px;
-            border-top: 1px solid #ccc;
-            padding-top: 20px;
-        }
-        #map {
-            height: 300px;
-            width: 100%;
-            margin-top: 10px;
-        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f9f9f9; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        #results { margin-top: 20px; border-top: 2px solid #eee; padding-top: 15px; line-height: 1.6; }
+        #map { height: 350px; width: 100%; margin-top: 15px; border-radius: 8px; border: 1px solid #ddd; }
+        button { width: 100%; background: #222; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #444; }
+        .as-main-container { width: 100% !important; } /* Fixes search dropdown width */
     </style>
+    
     <script src="https://apis.mappls.com/advancedmaps/api/frhibvtklfeaugvhceigifzarpjstrvqpvxb/map_sdk?v=3.0&layer=vector"></script>
     <script src="https://apis.mappls.com/advancedmaps/api/frhibvtklfeaugvhceigifzarpjstrvqpvxb/map_sdk_plugins?v=3.0"></script>
 </head>
 
 <body>
-
     <div class="container">
         <h2>Mappls Distance Finder</h2>
 
-        <input type="text" id="from-input" placeholder="Enter Starting Location">
-        <input type="text" id="to-input" placeholder="Enter Destination">
+        <input type="text" id="from-input" placeholder="Search Starting Location...">
+        <input type="text" id="to-input" placeholder="Search Destination...">
 
-        <button onclick="getDistance()" style="padding:10px 20px; cursor:pointer;">Show Distance</button>
+        <button onclick="getDistance()">Calculate Distance</button>
 
         <div id="results">
-            <p><b>From:</b> <span id="from-coord">N/A</span></p>
-            <p><b>To:</b> <span id="to-coord">N/A</span></p>
+            <p><b>From:</b> <span id="from-coord">Not Selected</span></p>
+            <p><b>To:</b> <span id="to-coord">Not Selected</span></p>
             <p><b>Road Distance:</b> <span id="dist-val">0</span> km</p>
         </div>
 
@@ -53,39 +37,86 @@
     </div>
 
     <script>
-        let fromData, toData, map;
+        let map, fromData, toData;
+        let markers = [];
 
         // 1. Initialize Map
-        map = new mappls.Map('map', { center: [28.6139, 77.2090], zoom: 5 });
-
-        // 2. Attach Search (Autosuggest) to Textboxes
-        new mappls.search(document.getElementById("from-input"), (data) => {
-            fromData = data[0];
-            document.getElementById('from-coord').innerText = `${fromData.lat}, ${fromData.lng}`;
+        map = new mappls.Map('map', { 
+            center: [28.6139, 77.2090], 
+            zoom: 5 
         });
 
-        new mappls.search(document.getElementById("to-input"), (data) => {
-            toData = data[0];
-            document.getElementById('to-coord').innerText = `${toData.lat}, ${toData.lng}`;
+        // 2. Wait for Map to load, then attach Search
+        map.on('load', function() {
+            
+            // Attach Search to "From" Input
+            new mappls.search(document.getElementById("from-input"), {
+                hyperLocal: true
+            }, (data) => {
+                if (data && data.length > 0) {
+                    fromData = data[0];
+                    document.getElementById('from-coord').innerText = `${fromData.lat}, ${fromData.lng}`;
+                    addMarker('from', fromData);
+                }
+            });
+
+            // Attach Search to "To" Input
+            new mappls.search(document.getElementById("to-input"), {
+                hyperLocal: true
+            }, (data) => {
+                if (data && data.length > 0) {
+                    toData = data[0];
+                    document.getElementById('to-coord').innerText = `${toData.lat}, ${toData.lng}`;
+                    addMarker('to', toData);
+                }
+            });
         });
 
-        // 3. Calculate Distance
+        function addMarker(type, data) {
+            // Remove existing marker for this type
+            if (markers[type]) markers[type].remove();
+
+            // Create new Marker
+            markers[type] = new mappls.Marker({
+                map: map,
+                position: { "lat": data.lat, "lng": data.lng },
+                popupHtml: `<b>${type.toUpperCase()}</b><br>${data.placeName}`
+            });
+
+            // Auto-adjust map view
+            fitMap();
+        }
+
+        function fitMap() {
+            if (fromData && toData) {
+                let bounds = new mappls.LatLngBounds();
+                bounds.extend([fromData.lat, fromData.lng]);
+                bounds.extend([toData.lat, toData.lng]);
+                map.fitBounds(bounds, { padding: 40 });
+            }
+        }
+
+        // 3. Calculate Road Distance using REST API
         function getDistance() {
-            if (!fromData || !toData) return alert("Please select both locations from the dropdown");
+            if (!fromData || !toData) {
+                return alert("Please select both locations from the search dropdown results.");
+            }
 
             const url = `https://apis.mappls.com/advancedmaps/v1/frhibvtklfeaugvhceigifzarpjstrvqpvxb/distance_matrix/driving/${fromData.lng},${fromData.lat};${toData.lng},${toData.lat}`;
 
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
-                    const distInKm = (data.results.distances[0][1] / 1000).toFixed(2);
-                    document.getElementById('dist-val').innerText = distInKm;
-
-                    // Optional: Zoom map to show both
-                    map.setCenter([fromData.lat, fromData.lng]);
-                });
+                    if (data.results && data.results.distances) {
+                        const distInMeters = data.results.distances[0][1];
+                        const distInKm = (distInMeters / 1000).toFixed(2);
+                        document.getElementById('dist-val').innerText = distInKm;
+                    } else {
+                        alert("Distance calculation failed. Ensure points are on land.");
+                    }
+                })
+                .catch(err => console.error("Error:", err));
         }
     </script>
 </body>
-
 </html>
