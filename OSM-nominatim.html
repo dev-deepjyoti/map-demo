@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Open Street View map - Distance Calculation</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+        #map { height: 500px; }
+
+        .search-box {
+            margin-bottom: 10px;
+        }
+
+        #resultBox {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        #clearBtn {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h3>Enter From and To location</h3>
+
+<div class="search-box">
+    <input type="text" id="fromInput" placeholder="Enter FROM location" size="50">
+</div>
+
+<div class="search-box">
+    <input type="text" id="toInput" placeholder="Enter TO location" size="50">
+</div>
+
+<!-- ✅ Clear Button -->
+<button id="clearBtn" onclick="clearAll()">Clear</button>
+
+<div id="resultBox">
+    <p><b>FROM:</b> <span id="fromText"></span></p>
+    <p><b>TO:</b> <span id="toText"></span></p>
+    <p><b>Distance (KM):</b> <span id="distanceText"></span></p>
+</div>
+
+<div id="map"></div>
+
+<script>
+    // var map = L.map('map').setView([22.5726, 88.3639], 13);
+
+     var map = L.map('map').setView([26.71, 88.43], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let from = null;
+    let to = null;
+    let fromMarker = null;
+    let toMarker = null;
+    let routeLine = null;
+
+    // Handle search
+    document.getElementById("fromInput").addEventListener("change", function () {
+        searchLocation(this.value, "from");
+    });
+
+    document.getElementById("toInput").addEventListener("change", function () {
+        searchLocation(this.value, "to");
+    });
+
+    function searchLocation(query, type) {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length === 0) return alert("Location not found");
+
+                let lat = parseFloat(data[0].lat);
+                let lon = parseFloat(data[0].lon);
+
+                map.setView([lat, lon], 14);
+
+                if (type === "from") {
+                    if (fromMarker) map.removeLayer(fromMarker);
+
+                    from = { lat: lat, lng: lon };
+
+                    fromMarker = L.marker([lat, lon])
+                        .addTo(map)
+                        .bindPopup("FROM")
+                        .openPopup();
+                }
+
+                if (type === "to") {
+                    if (toMarker) map.removeLayer(toMarker);
+
+                    to = { lat: lat, lng: lon };
+
+                    toMarker = L.marker([lat, lon])
+                        .addTo(map)
+                        .bindPopup("TO")
+                        .openPopup();
+                }
+
+                if (from && to) {
+                    drawRouteAndDistance();
+                }
+            });
+    }
+
+    function drawRouteAndDistance() {
+        if (routeLine) map.removeLayer(routeLine);
+
+        routeLine = L.polyline([
+            [from.lat, from.lng],
+            [to.lat, to.lng]
+        ]).addTo(map);
+
+        let distance = calculateDistance(from, to);
+
+        document.getElementById("resultBox").style.display = "block";
+
+        document.getElementById("fromText").innerText =
+            `Lat: ${from.lat}, Lng: ${from.lng}`;
+
+        document.getElementById("toText").innerText =
+            `Lat: ${to.lat}, Lng: ${to.lng}`;
+
+        document.getElementById("distanceText").innerText =
+            distance.toFixed(2);
+    }
+
+    
+    function calculateDistance(p1, p2) {
+        const R = 6371;
+
+        const dLat = toRad(p2.lat - p1.lat);
+        const dLon = toRad(p2.lng - p1.lng);
+
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(p1.lat)) *
+            Math.cos(toRad(p2.lat)) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
+    }
+
+    function toRad(value) {
+        return value * Math.PI / 180;
+    }
+
+    // 🔥 CLEAR FUNCTION
+    function clearAll() {
+
+        // Clear inputs
+        document.getElementById("fromInput").value = "";
+        document.getElementById("toInput").value = "";
+
+        // Remove markers
+        if (fromMarker) {
+            map.removeLayer(fromMarker);
+            fromMarker = null;
+        }
+
+        if (toMarker) {
+            map.removeLayer(toMarker);
+            toMarker = null;
+        }
+
+        // Remove route
+        if (routeLine) {
+            map.removeLayer(routeLine);
+            routeLine = null;
+        }
+
+        // Reset variables
+        from = null;
+        to = null;
+
+        // Hide result
+        document.getElementById("resultBox").style.display = "none";
+
+        // Reset map view
+        map.setView([22.5726, 88.3639], 13);
+
+        console.clear();
+    }
+</script>
+
+</body>
+</html>

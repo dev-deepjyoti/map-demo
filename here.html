@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HERE Auto Route</title>
+
+    <script src="https://js.api.here.com/v3/3.1/mapsjs-core.js"></script>
+    <script src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
+    <script src="https://js.api.here.com/v3/3.1/mapsjs-ui.js"></script>
+    <script src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js"></script>
+
+    <link rel="stylesheet" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css" />
+
+    <style>
+        #map { width: 100%; height: 500px; }
+        input { margin:5px; padding:5px; }
+        button { padding:5px 10px; }
+    </style>
+</head>
+<body>
+
+<input type="text" id="from" placeholder="From location">
+<input type="text" id="to" placeholder="To location">
+<button onclick="clearAll()">Clear</button>
+
+<h3 id="info"></h3>
+
+<div id="map"></div>
+
+<script>
+
+var platform = new H.service.Platform({
+    apikey: 'YOUR_API_KEY_HERE'
+});
+
+var defaultLayers = platform.createDefaultLayers();
+
+var map = new H.Map(
+    document.getElementById('map'),
+    defaultLayers.vector.normal.map,
+    {
+        zoom: 12,
+        center: { lat: 22.5726, lng: 88.3639 }
+    });
+
+var behavior = new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+var ui = H.ui.UI.createDefault(map, defaultLayers);
+
+var routeLine = null;
+var debounceTimer = null;
+
+// 🔍 Geocode
+function geocode(query, callback) {
+    var service = platform.getSearchService();
+
+    service.geocode({ q: query }, function(result) {
+        if (result.items.length > 0) {
+            callback(result.items[0].position);
+        }
+    });
+}
+
+// 🚗 Route calculation
+function calculateRoute() {
+
+    var from = document.getElementById("from").value;
+    var to = document.getElementById("to").value;
+
+    if (!from || !to) return;
+
+    geocode(from, function(fromPos) {
+        geocode(to, function(toPos) {
+
+            var router = platform.getRoutingService(null, 8);
+
+            var params = {
+                routingMode: 'fast',
+                transportMode: 'car',
+                origin: fromPos.lat + ',' + fromPos.lng,
+                destination: toPos.lat + ',' + toPos.lng,
+                return: 'polyline,summary'
+            };
+
+            router.calculateRoute(params, function(result) {
+
+                if (routeLine) {
+                    map.removeObject(routeLine);
+                }
+
+                var route = result.routes[0];
+                var section = route.sections[0];
+
+                var linestring = H.geo.LineString.fromFlexiblePolyline(section.polyline);
+
+                routeLine = new H.map.Polyline(linestring, {
+                    style: { strokeColor: 'blue', lineWidth: 5 }
+                });
+
+                map.addObject(routeLine);
+
+                map.getViewModel().setLookAtData({
+                    bounds: routeLine.getBoundingBox()
+                });
+
+                var distance = section.summary.length / 1000;
+                var duration = section.summary.duration / 60;
+
+                document.getElementById("info").innerHTML =
+                    "Distance: " + distance.toFixed(2) + " km | ETA: " + duration.toFixed(0) + " mins";
+
+            });
+
+        });
+    });
+}
+
+// ⚡ Debounce keyup (important)
+function handleTyping() {
+    clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(function () {
+        calculateRoute();
+    }, 500); // wait 500ms after typing stops
+}
+
+// 🔄 Attach keyup events
+document.getElementById("from").addEventListener("keyup", handleTyping);
+document.getElementById("to").addEventListener("keyup", handleTyping);
+
+// 🧹 Clear everything
+function clearAll() {
+
+    document.getElementById("from").value = "";
+    document.getElementById("to").value = "";
+    document.getElementById("info").innerHTML = "";
+
+    if (routeLine) {
+        map.removeObject(routeLine);
+        routeLine = null;
+    }
+
+    // reset map view
+    map.setCenter({ lat: 22.5726, lng: 88.3639 });
+    map.setZoom(12);
+}
+
+</script>
+
+</body>
+</html>

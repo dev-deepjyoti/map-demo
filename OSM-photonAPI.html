@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Open Street View map - Distance Calculation</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+        #map { height: 500px; }
+
+        .search-box {
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .suggestions {
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            background: white;
+            position: absolute;
+            width: 350px;
+            z-index: 1000;
+        }
+
+        .suggestion-item {
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background: #eee;
+        }
+
+        #resultBox {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        #clearBtn {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h3>Enter From and To location</h3>
+
+<div class="search-box">
+    <input type="text" id="fromInput" placeholder="Enter FROM location" size="50">
+    <div id="fromSuggestions" class="suggestions"></div>
+</div>
+
+<div class="search-box">
+    <input type="text" id="toInput" placeholder="Enter TO location" size="50">
+    <div id="toSuggestions" class="suggestions"></div>
+</div>
+
+<button id="clearBtn" onclick="clearAll()">Clear</button>
+
+<div id="resultBox">
+    <p><b>FROM:</b> <span id="fromText"></span></p>
+    <p><b>TO:</b> <span id="toText"></span></p>
+    <p><b>Distance (KM):</b> <span id="distanceText"></span></p>
+</div>
+
+<div id="map"></div>
+
+<script>
+    var map = L.map('map').setView([26.71, 88.43], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let from = null;
+    let to = null;
+    let fromMarker = null;
+    let toMarker = null;
+    let routeLine = null;
+
+    // 🔍 AUTOCOMPLETE SETUP
+    setupAutocomplete("fromInput", "fromSuggestions", "from");
+    setupAutocomplete("toInput", "toSuggestions", "to");
+
+    function setupAutocomplete(inputId, suggestionId, type) {
+        const input = document.getElementById(inputId);
+        const suggestionBox = document.getElementById(suggestionId);
+
+        input.addEventListener("input", function () {
+            let query = input.value;
+
+            if (query.length < 3) {
+                suggestionBox.innerHTML = "";
+                return;
+            }
+
+            fetch(`https://photon.komoot.io/api/?q=${query}`)
+                .then(res => res.json())
+                .then(data => {
+                    suggestionBox.innerHTML = "";
+
+                    data.features.forEach(item => {
+                        let name = item.properties.name || "Unknown";
+                        let city = item.properties.city || "";
+                        let coords = item.geometry.coordinates;
+
+                        let div = document.createElement("div");
+                        div.className = "suggestion-item";
+                        div.innerText = `${name}, ${city}`;
+
+                        div.onclick = function () {
+                            input.value = `${name}, ${city}`;
+                            suggestionBox.innerHTML = "";
+
+                            let lat = coords[1];
+                            let lng = coords[0];
+
+                            setLocation(lat, lng, type);
+                        };
+
+                        suggestionBox.appendChild(div);
+                    });
+                });
+        });
+    }
+
+    function setLocation(lat, lng, type) {
+        map.setView([lat, lng], 14);
+
+        if (type === "from") {
+            if (fromMarker) map.removeLayer(fromMarker);
+
+            from = { lat, lng };
+
+            fromMarker = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup("FROM")
+                .openPopup();
+        }
+
+        if (type === "to") {
+            if (toMarker) map.removeLayer(toMarker);
+
+            to = { lat, lng };
+
+            toMarker = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup("TO")
+                .openPopup();
+        }
+
+        if (from && to) {
+            drawRouteAndDistance();
+        }
+    }
+
+    // ✅ FIXED: REAL ROAD ROUTE USING OSRM
+    function drawRouteAndDistance() {
+
+        if (routeLine) {
+            map.removeLayer(routeLine);
+        }
+
+        fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
+            .then(res => res.json())
+            .then(data => {
+
+                let route = data.routes[0];
+
+                // Draw real road route
+                routeLine = L.geoJSON(route.geometry).addTo(map);
+
+                // Distance in KM
+                let distance = route.distance / 1000;
+
+                document.getElementById("resultBox").style.display = "block";
+
+                document.getElementById("fromText").innerText =
+                    `Lat: ${from.lat}, Lng: ${from.lng}`;
+
+                document.getElementById("toText").innerText =
+                    `Lat: ${to.lat}, Lng: ${to.lng}`;
+
+                document.getElementById("distanceText").innerText =
+                    distance.toFixed(2);
+
+                console.log("Road Distance:", distance.toFixed(2), "KM");
+            });
+    }
+
+    function clearAll() {
+        document.getElementById("fromInput").value = "";
+        document.getElementById("toInput").value = "";
+        document.getElementById("fromSuggestions").innerHTML = "";
+        document.getElementById("toSuggestions").innerHTML = "";
+
+        if (fromMarker) map.removeLayer(fromMarker);
+        if (toMarker) map.removeLayer(toMarker);
+        if (routeLine) map.removeLayer(routeLine);
+
+        from = null;
+        to = null;
+
+        document.getElementById("resultBox").style.display = "none";
+
+        map.setView([22.5726, 88.3639], 13);
+
+        console.clear();
+    }
+</script>
+</body>
+</html>
