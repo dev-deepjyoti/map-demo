@@ -1,197 +1,89 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Mappls Direction - Multi Route चयन</title>
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- ✅ Map SDK -->
-    <script
-        src="https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&callback=initMap"></script>
-
-    <!-- ✅ Direction Plugin -->
-    <script
-        src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0"></script>
-
+    <title>Mappls Distance POC</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <style>
         body {
-            margin: 0;
-            font-family: Arial;
+            font-family: sans-serif;
+            padding: 20px;
         }
-
-        #map {
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        input {
             width: 100%;
-            height: 60vh;
-        }
-
-        .controls {
             padding: 10px;
-            background: #f5f5f5;
+            margin: 10px 0;
+            box-sizing: border-box;
         }
-
-        input,
-        select {
-            margin: 5px;
-            padding: 6px;
-        }
-
-        #info {
-            padding: 10px;
-            background: #fff;
+        #results {
+            margin-top: 20px;
             border-top: 1px solid #ccc;
+            padding-top: 20px;
+        }
+        #map {
+            height: 300px;
+            width: 100%;
+            margin-top: 10px;
         }
     </style>
+    <script src="https://apis.mappls.com/advancedmaps/api/frhibvtklfeaugvhceigifzarpjstrvqpvxb/map_sdk?v=3.0&layer=vector"></script>
+    <script src="https://apis.mappls.com/advancedmaps/api/frhibvtklfeaugvhceigifzarpjstrvqpvxb/map_sdk_plugins?v=3.0"></script>
 </head>
+
 <body>
-    <div class="controls">
-        <input type="text" id="from" placeholder="Start location"> 
-        <input type="text" id="to" placeholder="End location">
 
-        <select id="vehicle">
-            <option value="driving">Car</option>
-            <option value="biking">Bike</option>
-            <option value="trucking">Truck</option>
-            <option value="walking">Walking</option>
-        </select>
+    <div class="container">
+        <h2>Mappls Distance Finder</h2>
 
-        <!-- 🔥 Route selector -->
-        <select id="routeSelect" onchange="onRouteChange()">
-            <option value="">Select Route</option>
-        </select>
+        <input type="text" id="from-input" placeholder="Enter Starting Location">
+        <input type="text" id="to-input" placeholder="Enter Destination">
 
-        <button onclick="getRoute()">Get Route</button>
-        <button onclick="clearAll()">Clear</button>
+        <button onclick="getDistance()" style="padding:10px 20px; cursor:pointer;">Show Distance</button>
+
+        <div id="results">
+            <p><b>From:</b> <span id="from-coord">N/A</span></p>
+            <p><b>To:</b> <span id="to-coord">N/A</span></p>
+            <p><b>Road Distance:</b> <span id="dist-val">0</span> km</p>
+        </div>
+
+        <div id="map"></div>
     </div>
 
-    <div id="map"></div>
-    <div id="info"></div>
-
     <script>
+        let fromData, toData, map;
 
-        let map, direction_plugin;
-        let allRoutes = [];
+        // 1. Initialize Map
+        map = new mappls.Map('map', { center: [28.6139, 77.2090], zoom: 5 });
 
-        // ✅ INIT MAP
-        function initMap() {
-            map = new mappls.Map('map', {
-                center: [22.5726, 88.3639],
-                zoom: 10
-            });
-        }
+        // 2. Attach Search (Autosuggest) to Textboxes
+        new mappls.search(document.getElementById("from-input"), (data) => {
+            fromData = data[0];
+            document.getElementById('from-coord').innerText = `${fromData.lat}, ${fromData.lng}`;
+        });
 
-        //  GET ROUTE
-        function getRoute() {
+        new mappls.search(document.getElementById("to-input"), (data) => {
+            toData = data[0];
+            document.getElementById('to-coord').innerText = `${toData.lat}, ${toData.lng}`;
+        });
 
-            let from = document.getElementById("from").value;
-            let to = document.getElementById("to").value;
-            let vehicle = document.getElementById("vehicle").value;
+        // 3. Calculate Distance
+        function getDistance() {
+            if (!fromData || !toData) return alert("Please select both locations from the dropdown");
 
-            if (!from || !to) {
-                alert("Enter both locations");
-                return;
-            }
+            const url = `https://apis.mappls.com/advancedmaps/v1/frhibvtklfeaugvhceigifzarpjstrvqpvxb/distance_matrix/driving/${fromData.lng},${fromData.lat};${toData.lng},${toData.lat}`;
 
-            // remove old route
-            if (direction_plugin) {
-                direction_plugin.remove();
-            }
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    const distInKm = (data.results.distances[0][1] / 1000).toFixed(2);
+                    document.getElementById('dist-val').innerText = distInKm;
 
-            let options = {
-                map: map,
-                start: from,
-                end: to,
-                Profile: [vehicle],
-                isDraggable: false
-            };
-
-            mappls.direction(options, function (data) {
-
-                direction_plugin = data;
-
-                let routes = data?.routes || data?.data?.routes;
-
-                if (!routes || routes.length === 0) {
-                    document.getElementById("info").innerHTML = "No route found";
-                    return;
-                }
-
-                // 🔥 store routes
-                allRoutes = routes;
-
-                // 🔽 populate dropdown
-                let dropdown = document.getElementById("routeSelect");
-                dropdown.innerHTML = '<option value="">Select Route</option>';
-
-                console.log("Data:"+data);
-                console.log("All Route:"+allRoutes);
-
-                routes.forEach((r, index) => {
-                    let dist = (r.distance / 1000).toFixed(2);
-                    let dur = (r.duration / 60).toFixed(0);
-
-                    dropdown.innerHTML += `<option value="${index}">
-                        Route ${index + 1} (${dist} km, ${dur} mins)
-                    </option>`;
+                    // Optional: Zoom map to show both
+                    map.setCenter([fromData.lat, fromData.lng]);
                 });
-
-                // auto select first route
-                dropdown.value = 0;
-                showRouteDetails(0);
-            });
-        }
-
-        // 🔄 Route selection change
-        function onRouteChange() {
-            let index = document.getElementById("routeSelect").value;
-
-            if (index !== "") {
-                showRouteDetails(index);
-            }
-        }
-
-        // 📊 Show route details
-        function showRouteDetails(index) {
-
-            let route = allRoutes[index];
-
-            let distance = (route.distance / 1000).toFixed(2);
-            let duration = (route.duration / 60).toFixed(0);
-
-            let start = route.legs[0].start_location;
-            let end = route.legs[0].end_location;
-
-            let startAddr = route.legs[0].start_address;
-            let endAddr = route.legs[0].end_address;
-
-            document.getElementById("info").innerHTML = `
-                <b>From:</b> ${startAddr} <br>
-                <b>To:</b> ${endAddr} <br><br>
-
-                <b>Distance:</b> ${distance} km <br>
-                <b>ETA:</b> ${duration} mins <br><br>
-
-                <b>From Lat/Lng:</b> ${start.lat}, ${start.lng} <br>
-                <b>To Lat/Lng:</b> ${end.lat}, ${end.lng}
-            `;
-        }
-
-        // CLEAR CONTROLS
-        function clearAll() {
-
-            document.getElementById("from").value = "";
-            document.getElementById("to").value = "";
-            document.getElementById("info").innerHTML = "";
-
-            document.getElementById("routeSelect").innerHTML = '<option value="">Select Route</option>';
-            allRoutes = [];
-
-            if (direction_plugin) {
-                direction_plugin.remove();
-            }
-
-            map.setCenter([22.5726, 88.3639]);
-            map.setZoom(10);
         }
     </script>
 </body>
