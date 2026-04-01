@@ -1,35 +1,51 @@
 <html>
 
 <head>
-    <title>Mapple - Default Map</title>
-    <meta name="viewport" content="initial-scale=1.0">
-    <meta charset="utf-8">
+    <title>Default Direction</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Default Direction">
+
+    <script src="https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=Token&callback=initMap1"></script>
+    <script src="https://sdk.mappls.com/map/sdk/plugins?access_token=Token&v=3.0"></script>
     <style>
-        html,
-        body,
-        #map {
+        body {
             margin: 0;
-            padding: 0;
+        }
+
+        #map {
             width: 100%;
             height: 100vh;
+            margin: 0;
+            padding: 0;
         }
     </style>
-    <script
-        src="https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&callback=initMap1"
-        defer async></script>
 </head>
 
 <body>
     <div id="map"></div>
-
-
     <script>
-        let map;
+        /*Map Initialization*/
+        var map, direction_plugin;
+
         function initMap1() {
             map = new mappls.Map('map', {
                 center: [22.5726, 88.3639],
-                zoomControl: true,
-                tilt: 60
+                zoom: 5
+            });
+
+            map.addListener('load', function () {
+                /*direction plugin initialization*/
+                var direction_option = {
+                    map: map,
+                    divWidth: '350px',
+                    isDraggable: false,
+                    end: { label: 'India Gate', geoposition: "28.612964,77.229463" },
+                    Profile: ['driving', 'biking', 'trucking', 'walking']
+                }
+                mappls.direction(direction_option, function (data) {
+                    direction_plugin = data;
+                    console.log(direction_plugin);
+                });
             });
         }
     </script>
