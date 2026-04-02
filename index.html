@@ -14,17 +14,6 @@
       .result-block { margin: 6px 0; }
       .result-coords { margin-top: 4px; }
       .result b { display: inline-block; min-width: 52px; }
-
-      /* ✅ Hidden map — exists in DOM, invisible to user */
-      #hiddenMap {
-        width: 1px;
-        height: 1px;
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        visibility: hidden;
-        overflow: hidden;
-      }
     </style>
   </head>
   <body>
@@ -58,68 +47,45 @@
       </div>
     </div>
 
-    <!-- Hidden map div for SDK to render into -->
-    <div id="hiddenMap"></div>
-
-    <!-- Step 1: Map SDK (needed to init map for pinMarker) -->
-    <script src="https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&callback=initMap"></script>
-    <!-- Step 2: Plugins SDK (search + pinMarker) -->
-    <script src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=search"></script>
+    <!--
+      Single plugins script with BOTH libraries loaded:
+      - search      → mappls.search()
+      - getPinDetails → mappls.getPinDetails()
+    -->
+    <script src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=search,getPinDetails"></script>
 
     <script>
-      var map;
+      // ✅ Resolve eLoc → lat/lng using getPinDetails (no map needed)
+      function resolveLatLng(eLoc, prefix) {
+        document.getElementById(prefix + 'Lat').textContent = 'resolving...';
+        document.getElementById(prefix + 'Lng').textContent = 'resolving...';
 
-      // ✅ Step 1: Init hidden background map
-      function initMap() {
-        map = new mappls.Map('hiddenMap', {
-          center: [20.5937, 78.9629],
-          zoom: 5
-        });
+        mappls.getPinDetails(
+          { pin: eLoc },         // ✅ map is optional — skip it entirely
+          function (data) {
+            console.log("getPinDetails raw:", data);
 
-        map.addListener('load', function () {
-          initSearchBoxes();
-        });
-      }
+            if (!data) return;
 
-     function resolveLatLng(eLoc, prefix) {
-    document.getElementById(prefix + 'Lat').textContent = 'resolving...';
-    document.getElementById(prefix + 'Lng').textContent = 'resolving...';
+            // Response is typically the place detail object directly
+            var d = Array.isArray(data) ? data[0] : data;
 
-    // ✅ Patch: give the map a toJSON so JSON.stringify won't circular-crash
-    // The SDK calls JSON.stringify internally — this safely breaks the circle
-    map.toJSON = function() { return '[MapObject]'; };
+            console.log("getPinDetails keys:", Object.keys(d));
 
-    mappls.pinMarker(
-        { map: map, pin: eLoc },
-        function (markerData) {
-            console.log("pinMarker callback raw:", markerData);
+            var lat = d?.latitude  ?? d?.lat  ?? null;
+            var lng = d?.longitude ?? d?.lng  ?? null;
 
-            if (!markerData) return;
-
-            var item = Array.isArray(markerData) ? markerData[0] : markerData;
-
-            // Log to find exact shape
-            console.log("item keys:", Object.keys(item));
-            console.log("item.position:", item?.position);
-            console.log("getLngLat:", typeof item?.getLngLat === 'function' ? item.getLngLat() : 'N/A');
-
-            var lngLat = typeof item?.getLngLat === 'function'
-                ? item.getLngLat()
-                : item?.position ?? item?._lngLat ?? null;
-
-            var lat = lngLat?.lat ?? item?.lat ?? null;
-            var lng = lngLat?.lng ?? item?.lng ?? null;
-
-            console.log("Resolved:", lat, lng);
+            console.log("Resolved lat/lng:", lat, lng);
 
             document.getElementById(prefix + 'Lat').textContent = lat ?? 'N/A';
             document.getElementById(prefix + 'Lng').textContent = lng ?? 'N/A';
-        }
-    );
-}
+          }
+        );
+      }
 
-      // ✅ Step 3: Search boxes — same as before, just call resolveLatLng after
-      function initSearchBoxes() {
+      // ✅ Search boxes
+      window.addEventListener('DOMContentLoaded', function () {
+
         function makePlaceOptions(prefix) {
           return {
             region: 'IND',
@@ -149,7 +115,7 @@
           document.getElementById(prefix + 'ELoc').value          = eLoc;
           document.getElementById(prefix + 'Address').textContent = placeText || 'Selected.';
 
-          // 🔑 Resolve lat/lng via pinMarker using eLoc
+          // 🔑 Use getPinDetails to get lat/lng from eLoc
           if (eLoc) resolveLatLng(eLoc, prefix);
         }
 
@@ -170,7 +136,7 @@
             handleSearchResult('to', data);
           }
         );
-      }
+      });
     </script>
   </body>
 </html>
