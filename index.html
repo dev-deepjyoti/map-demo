@@ -56,11 +56,6 @@
   </head>
   <body>
     <h2>From / To Place Search</h2>
-    <div class="muted">
-      Note: Your `access_token` is embedded in this page, so it will be visible to anyone who can view the code.
-      Use restricted keys/whitelisting in Mappls Console.
-    </div>
-
     <div class="row" style="margin-top: 12px">
       <div class="field">
         <label for="fromInput">From</label>
@@ -102,6 +97,7 @@
         if (!eLoc) return { lat: null, lng: null };
         if (typeof eLoc !== "string") return { lat: null, lng: null };
 
+console.log("eLoc:"+eLoc);
         // Common format is "lat,lng" (used by Mappls pinMarker plugin).
         const parts = eLoc.split(",");
         if (parts.length === 2) {
@@ -115,7 +111,7 @@
 
       function updateFromUI(prefix, data) {
         if (!data) return;
-
+console.log("data:"+data);
         // Token/auth error handling (per docs).
         if (!Array.isArray(data) && data.error) {
           console.error("Mappls search error:", data);
@@ -181,6 +177,7 @@
           makePlaceOptions("from"),
           function (data) {
             updateFromUI("from", data);
+            console.log("data from:"+data);
           }
         );
 
@@ -189,6 +186,7 @@
           makePlaceOptions("to"),
           function (data) {
             updateFromUI("to", data);
+            console.log("data from:"+data);
           }
         );
       });
