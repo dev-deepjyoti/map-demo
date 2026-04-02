@@ -133,7 +133,11 @@
         // In Mappls sample, callback receives `data` where `data[0]` holds details.
         const dt = Array.isArray(data) ? data[0] : data;
         if (!dt) return;
-        console.log("UpdateUI-Func:"+ dt)
+      
+         console.log("UpdateUI-dt:"+JSON.stringify(dt));
+         console.log("UpdateUI-data:"+JSON.stringify(data));
+          console.log("UpdateUI-eLoc:"+ dt.eLoc);
+
         const eLoc = dt.eLoc || "";
         const { lat, lng } = parseELocToLatLng(eLoc);
 
