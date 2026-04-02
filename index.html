@@ -107,8 +107,12 @@
               data.marker.obj?._lngLat ||
               null;
 
-            console.log("lngLat:", lngLat);
+//The Mappls SDK is built on top of MapLibre GL JS (an open-source map rendering engine). 
+// MapLibre has a Marker class with a getLngLat() method that is part of MapLibre's own API — 
+// not Mappls's. Mappls wraps it but doesn't document the underlying methods because
+//  they consider it an implementation detail.
 
+            console.log("lngLat:", lngLat);
             setCoords(
               prefix,
               lngLat?.lat ?? 'N/A',
