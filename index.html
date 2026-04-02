@@ -112,7 +112,7 @@
         return { lat: null, lng: null };
       }
 
-      function updateFromUI(prefix, data) {
+      function updateUI(prefix, data) {
         if (!data) return;
       
         // Token/auth error handling (per docs).
@@ -133,23 +133,17 @@
         // In Mappls sample, callback receives `data` where `data[0]` holds details.
         const dt = Array.isArray(data) ? data[0] : data;
         if (!dt) return;
-
-      
-
+        console.log("UpdateUI-Func:"+ dt)
         const eLoc = dt.eLoc || "";
         const { lat, lng } = parseELocToLatLng(eLoc);
 
         document.getElementById(prefix + "ELoc").value = eLoc;
-        document.getElementById(prefix + "Lat").textContent =
-          lat == null ? "-" : lat;
-        document.getElementById(prefix + "Lng").textContent =
-          lng == null ? "-" : lng;
+        document.getElementById(prefix + "Lat").textContent = lat == null ? "-" : lat;
+        document.getElementById(prefix + "Lng").textContent = lng == null ? "-" : lng;
 
         const placeText = dt.placeName
           ? dt.placeName + (dt.placeAddress ? " , " + dt.placeAddress : "")
-          : dt.placeAddress
-            ? dt.placeAddress
-            : "";
+          : dt.placeAddress ? dt.placeAddress : "";
 
         document.getElementById(prefix + "Address").textContent =
           placeText || (eLoc ? "Selected." : "-");
@@ -162,11 +156,10 @@
           return {
           region: "IND",
           geolocation: true,
-          // location: [28.61, 77.23],
           width: 320,
           height: 300,
-          clearButton: false,
-            blank_callback: function () {
+          clearButton:true,
+          blank_callback: function () {
               // Clear when user clicks cross button / erases input.
               document.getElementById(prefix + "Lat").textContent = "-";
               document.getElementById(prefix + "Lng").textContent = "-";
@@ -181,8 +174,8 @@
           document.getElementById("fromInput"),
           makePlaceOptions("from"),
           function (data) {
-            updateFromUI("from", data);
-            console.log("data from:"+JSON.stringify(data));
+            console.log("Search From Data:"+JSON.stringify(data));
+            updateUI("from", data);
           }
         );
 
@@ -190,8 +183,8 @@
           document.getElementById("toInput"),
           makePlaceOptions("to"),
           function (data) {
-            updateFromUI("to", data);
-            console.log("data To:"+JSON.stringify(data));
+            console.log("Search To Data:"+JSON.stringify(data));
+            updateUI("to", data);
           }
         );
       });
