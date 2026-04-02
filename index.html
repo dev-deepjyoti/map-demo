@@ -137,7 +137,7 @@
         const dt = Array.isArray(data) ? data[0] : data;
         if (!dt) return;
 
-        console.log("updateFromUI-dt:"+dt);
+        console.log("updateFromUI-dt:"+JSON.stringify(dt));
 
         const eLoc = dt.eLoc || "";
         const { lat, lng } = parseELocToLatLng(eLoc);
