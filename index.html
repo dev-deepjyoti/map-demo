@@ -96,16 +96,13 @@
       function parseELocToLatLng(eLoc) {
         if (!eLoc) return { lat: null, lng: null };
         if (typeof eLoc !== "string") return { lat: null, lng: null };
-        console.log("Function-parseELocToLatLng-eLoc:"+eLoc);
+       
 
         // Common format is "lat,lng" (used by Mappls pinMarker plugin).
         const parts = eLoc.split(",");
         if (parts.length === 2) {
           const lat = parseFloat(parts[0]);
           const lng = parseFloat(parts[1]);
-
-          console.log("Function-parseELocToLatLng-lat:"+lat);
-          console.log("Function-parseELocToLatLng-lng:"+lng);
 
           if (!Number.isNaN(lat) && !Number.isNaN(lng)) 
           {
@@ -117,10 +114,10 @@
 
       function updateFromUI(prefix, data) {
         if (!data) return;
-        console.log("updateFromUI-data:"+JSON.stringify(data));
+      
         // Token/auth error handling (per docs).
         if (!Array.isArray(data) && data.error) {
-          console.error("Mappls search error:", data);
+         
           document.getElementById(prefix + "Address").textContent = "Error: " + data.error;
           // Attempt token refresh if SDK supports it.
           if (typeof mappls?.setToken === "function") {
@@ -137,7 +134,7 @@
         const dt = Array.isArray(data) ? data[0] : data;
         if (!dt) return;
 
-        console.log("updateFromUI-dt:"+JSON.stringify(dt));
+      
 
         const eLoc = dt.eLoc || "";
         const { lat, lng } = parseELocToLatLng(eLoc);
