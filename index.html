@@ -5,64 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mappls Place Search (From/To)</title>
     <style>
-      body {
-        font-family: Arial, Helvetica, sans-serif;
-        padding: 16px;
-      }
-      .row {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        align-items: flex-start;
-      }
-      .field {
-        width: 360px;
-      }
-      label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
-      input[type="text"] {
-        width: 320px;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        outline: none;
-      }
-      .result {
-        margin-top: 10px;
-        padding: 10px;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        background: #fafafa;
-      }
-      .result-block {
-        margin: 6px 0;
-      }
-      .result-coords {
-        margin-top: 4px;
-      }
-      .result b {
-        display: inline-block;
-        min-width: 52px;
-      }
-      .muted {
-        color: #666;
-        font-size: 12px;
-        margin-top: 6px;
+      body { font-family: Arial, Helvetica, sans-serif; padding: 16px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+      .field { width: 360px; }
+      label { display: block; font-weight: 600; margin-bottom: 8px; }
+      input[type="text"] { width: 320px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+      .result { margin-top: 10px; padding: 10px; border: 1px solid #eee; border-radius: 8px; background: #fafafa; }
+      .result-block { margin: 6px 0; }
+      .result-coords { margin-top: 4px; }
+      .result b { display: inline-block; min-width: 52px; }
+
+      /* ✅ Hidden map — exists in DOM, invisible to user */
+      #hiddenMap {
+        width: 1px;
+        height: 1px;
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        visibility: hidden;
+        overflow: hidden;
       }
     </style>
   </head>
   <body>
     <h2>From / To Place Search</h2>
+
     <div class="row" style="margin-top: 12px">
       <div class="field">
         <label for="fromInput">From</label>
         <input id="fromInput" type="text" placeholder="Start Location..." />
         <input type="hidden" id="fromELoc" />
       </div>
-
       <div class="field">
         <label for="toInput">To</label>
         <input id="toInput" type="text" placeholder="End Location..." />
@@ -77,7 +50,6 @@
           Latitude: <span id="fromLat">-</span> || Longitude: <span id="fromLng">-</span>
         </div>
       </div>
-
       <div class="result-block">
         <div><b>TO:</b> <span id="toAddress">-</span></div>
         <div class="result-coords">
@@ -86,105 +58,119 @@
       </div>
     </div>
 
-    <!-- Mappls Place Search plugin -->
-    <script
-      src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=search"
-    ></script>
+    <!-- Hidden map div for SDK to render into -->
+    <div id="hiddenMap"></div>
+
+    <!-- Step 1: Map SDK (needed to init map for pinMarker) -->
+    <script src="https://sdk.mappls.com/map/sdk/web?v=3.0&access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&callback=initMap"></script>
+    <!-- Step 2: Plugins SDK (search + pinMarker) -->
+    <script src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=search"></script>
+
     <script>
+      var map;
 
-     // Fetch lat/lng from eLoc using Mappls Place Detail API
-async function fetchLatLngFromELoc(eLoc) {
-    const token = "frhibvtklfeaugvhceigifzarpjstrvqpvxb"; // your token
-    const url = `https://atlas.mappls.com/api/places/geocode?region=IND&itemCount=1&eLoc=${eLoc}`;
-    
-    try {
-        const res = await fetch(url, {
-            headers: {
-                "Authorization": "bearer " + token
-            }
+      // ✅ Step 1: Init hidden background map
+      function initMap() {
+        map = new mappls.Map('hiddenMap', {
+          center: [20.5937, 78.9629],
+          zoom: 5
         });
-        const json = await res.json();
-        console.log("Place Detail Response:", JSON.stringify(json));
 
-        // Response structure: json.eLoc[0] or json.parsedLocations[0]
-        const place = json?.eLoc?.[0] || json?.parsedLocations?.[0];
-        if (place) {
-            return {
-                lat: place.latitude ?? place.lat ?? null,
-                lng: place.longitude ?? place.lng ?? null
-            };
-        }
-    } catch (e) {
-        console.error("Error fetching place detail:", e);
-    }
-    return { lat: null, lng: null };
-}
+        map.addListener('load', function () {
+          initSearchBoxes();
+        });
+      }
 
-async function updateUI(prefix, data) {
-    if (!data) return;
+      // ✅ Step 2: After search returns eLoc, use pinMarker to resolve lat/lng
+      function resolveLatLng(eLoc, prefix) {
+        document.getElementById(prefix + 'Lat').textContent = 'resolving...';
+        document.getElementById(prefix + 'Lng').textContent = 'resolving...';
 
-    const dt = Array.isArray(data) ? data[0] : data;
-    if (!dt) return;
+        mappls.pinMarker(
+          {
+            map: map,
+            pin: eLoc,       // eLoc like "W8G25V"
+          },
+          function (markerData) {
+            console.log("pinMarker callback for " + prefix + ":", JSON.stringify(markerData));
 
-    const eLoc = dt.eLoc || "";
+            if (!markerData) return;
 
-    // Update address immediately
-    const placeText = dt.placeName
-        ? dt.placeName + (dt.placeAddress ? ", " + dt.placeAddress : "")
-        : dt.placeAddress || "";
+            // pinMarker callback returns array; each item has position with lat/lng
+            var item = Array.isArray(markerData) ? markerData[0] : markerData;
 
-    document.getElementById(prefix + "Address").textContent = placeText || (eLoc ? "Selected." : "-");
-    document.getElementById(prefix + "ELoc").value = eLoc;
-    document.getElementById(prefix + "Lat").textContent = "loading...";
-    document.getElementById(prefix + "Lng").textContent = "loading...";
+            // position is returned as {lat, lng} or as geoJSON coordinates
+            var lat = item?.position?.lat
+                   ?? item?.lat
+                   ?? item?.geometry?.coordinates?.[1]
+                   ?? null;
 
-    // Fetch lat/lng via second call
-    if (eLoc) {
-        const { lat, lng } = await fetchLatLngFromELoc(eLoc);
-        document.getElementById(prefix + "Lat").textContent = lat ?? "N/A";
-        document.getElementById(prefix + "Lng").textContent = lng ?? "N/A";
-    }
-}
+            var lng = item?.position?.lng
+                   ?? item?.lng
+                   ?? item?.geometry?.coordinates?.[0]
+                   ?? null;
 
-      window.addEventListener("DOMContentLoaded", function () {
-        // Place options: location is used as radial bias (not restriction).
-        // Adjust the coordinates for your desired default bias center.
+            console.log("Resolved lat/lng:", lat, lng);
+
+            document.getElementById(prefix + 'Lat').textContent = lat ?? 'N/A';
+            document.getElementById(prefix + 'Lng').textContent = lng ?? 'N/A';
+          }
+        );
+      }
+
+      // ✅ Step 3: Search boxes — same as before, just call resolveLatLng after
+      function initSearchBoxes() {
         function makePlaceOptions(prefix) {
           return {
-          region: "IND",
-          geolocation: true,
-          width: 320,
-          height: 300,
-          clearButton:true,
-          blank_callback: function () {
-              // Clear when user clicks cross button / erases input.
-              document.getElementById(prefix + "Lat").textContent = "-";
-              document.getElementById(prefix + "Lng").textContent = "-";
-              document.getElementById(prefix + "ELoc").value = "";
-              document.getElementById(prefix + "Address").textContent = "-";
+            region: 'IND',
+            geolocation: true,
+            width: 320,
+            height: 300,
+            clearButton: true,
+            blank_callback: function () {
+              document.getElementById(prefix + 'Lat').textContent     = '-';
+              document.getElementById(prefix + 'Lng').textContent     = '-';
+              document.getElementById(prefix + 'ELoc').value          = '';
+              document.getElementById(prefix + 'Address').textContent = '-';
             },
           };
         }
 
-        // Initialize two independent search boxes.
+        function handleSearchResult(prefix, data) {
+          if (!data) return;
+          const dt = Array.isArray(data) ? data[0] : data;
+          if (!dt) return;
+
+          const eLoc = dt.eLoc || '';
+          const placeText = dt.placeName
+            ? dt.placeName + (dt.placeAddress ? ', ' + dt.placeAddress : '')
+            : dt.placeAddress || '';
+
+          document.getElementById(prefix + 'ELoc').value          = eLoc;
+          document.getElementById(prefix + 'Address').textContent = placeText || 'Selected.';
+
+          // 🔑 Resolve lat/lng via pinMarker using eLoc
+          if (eLoc) resolveLatLng(eLoc, prefix);
+        }
+
         new mappls.search(
-          document.getElementById("fromInput"),
-          makePlaceOptions("from"),
-         async function (data) {
-            console.log("Search From Data:"+JSON.stringify(data));
-           await updateUI("from", data);
+          document.getElementById('fromInput'),
+          makePlaceOptions('from'),
+          function (data) {
+            console.log('Search From Data:', JSON.stringify(data));
+            handleSearchResult('from', data);
           }
         );
 
         new mappls.search(
-          document.getElementById("toInput"),
-          makePlaceOptions("to"),
-         async function (data) {
-            console.log("Search To Data:"+JSON.stringify(data));
-          await  updateUI("to", data);
+          document.getElementById('toInput'),
+          makePlaceOptions('to'),
+          function (data) {
+            console.log('Search To Data:', JSON.stringify(data));
+            handleSearchResult('to', data);
           }
         );
-      });
+      }
     </script>
   </body>
 </html>
