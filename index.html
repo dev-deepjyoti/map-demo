@@ -92,8 +92,7 @@
             pin: eLoc,       // eLoc like "W8G25V"
           },
           function (markerData) {
-            console.log("pinMarker callback for " + prefix + ":", JSON.stringify(markerData));
-
+             console.log("pinMarker callback raw:", markerData);
             if (!markerData) return;
 
             // pinMarker callback returns array; each item has position with lat/lng
