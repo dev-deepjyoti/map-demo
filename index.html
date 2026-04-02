@@ -81,15 +81,16 @@
         });
       }
 
-      // ✅ Step 2: After search returns eLoc, use pinMarker to resolve lat/lng
-      function resolveLatLng(eLoc, prefix) {
+     function resolveLatLng(eLoc, prefix) {
     document.getElementById(prefix + 'Lat').textContent = 'resolving...';
     document.getElementById(prefix + 'Lng').textContent = 'resolving...';
 
+    // ✅ Patch: give the map a toJSON so JSON.stringify won't circular-crash
+    // The SDK calls JSON.stringify internally — this safely breaks the circle
+    map.toJSON = function() { return '[MapObject]'; };
 
-    // It still resolves eLoc to coordinates via the API
     mappls.pinMarker(
-        { pin: eLoc },          // no map property
+        { map: map, pin: eLoc },
         function (markerData) {
             console.log("pinMarker callback raw:", markerData);
 
@@ -97,8 +98,10 @@
 
             var item = Array.isArray(markerData) ? markerData[0] : markerData;
 
+            // Log to find exact shape
             console.log("item keys:", Object.keys(item));
             console.log("item.position:", item?.position);
+            console.log("getLngLat:", typeof item?.getLngLat === 'function' ? item.getLngLat() : 'N/A');
 
             var lngLat = typeof item?.getLngLat === 'function'
                 ? item.getLngLat()
