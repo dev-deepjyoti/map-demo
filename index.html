@@ -98,12 +98,17 @@
       function parseELocToLatLng(eLoc) {
         if (!eLoc) return { lat: null, lng: null };
         if (typeof eLoc !== "string") return { lat: null, lng: null };
-       
-        new Mappls.getPinDetails({ pin: eLoc}, callback);
-        function callback(data) {
-                    obj = data;
-                    console.log("parseELocToLatLng-obj:"+obj);
+
+        map.addListener('load',function(){
+                /*getPinDetails plugin initialization*/
+                mappls.getPinDetails({
+                    pin: eLoc
+                },callback);
+                function callback(data) {
+                    obj=data;
+                   console.log("parseELocToLatLng-obj:"+obj);
                 }
+            });
 
         // Common format is "lat,lng" (used by Mappls pinMarker plugin).
         const parts = eLoc.split(",");
