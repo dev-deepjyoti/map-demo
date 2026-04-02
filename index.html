@@ -96,22 +96,28 @@
       function parseELocToLatLng(eLoc) {
         if (!eLoc) return { lat: null, lng: null };
         if (typeof eLoc !== "string") return { lat: null, lng: null };
+        console.log("Function-parseELocToLatLng-eLoc:"+eLoc);
 
-console.log("eLoc:"+eLoc);
         // Common format is "lat,lng" (used by Mappls pinMarker plugin).
         const parts = eLoc.split(",");
         if (parts.length === 2) {
           const lat = parseFloat(parts[0]);
           const lng = parseFloat(parts[1]);
-          if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
-        }
 
+          console.log("Function-parseELocToLatLng-lat:"+lat);
+          console.log("Function-parseELocToLatLng-lng:"+lng);
+
+          if (!Number.isNaN(lat) && !Number.isNaN(lng)) 
+          {
+              return { lat, lng };
+          }
+        }
         return { lat: null, lng: null };
       }
 
       function updateFromUI(prefix, data) {
         if (!data) return;
-console.log("data:"+data);
+        console.log("updateFromUI-data:"+JSON.stringify(data));
         // Token/auth error handling (per docs).
         if (!Array.isArray(data) && data.error) {
           console.error("Mappls search error:", data);
@@ -130,6 +136,8 @@ console.log("data:"+data);
         // In Mappls sample, callback receives `data` where `data[0]` holds details.
         const dt = Array.isArray(data) ? data[0] : data;
         if (!dt) return;
+
+        console.log("updateFromUI-dt:"+dt);
 
         const eLoc = dt.eLoc || "";
         const { lat, lng } = parseELocToLatLng(eLoc);
@@ -177,7 +185,7 @@ console.log("data:"+data);
           makePlaceOptions("from"),
           function (data) {
             updateFromUI("from", data);
-            console.log("data from:"+data);
+            console.log("data from:"+JSON.stringify(data));
           }
         );
 
@@ -186,7 +194,7 @@ console.log("data:"+data);
           makePlaceOptions("to"),
           function (data) {
             updateFromUI("to", data);
-            console.log("data from:"+data);
+            console.log("data To:"+JSON.stringify(data));
           }
         );
       });
