@@ -170,18 +170,18 @@ async function updateUI(prefix, data) {
         new mappls.search(
           document.getElementById("fromInput"),
           makePlaceOptions("from"),
-          function (data) {
+         async function (data) {
             console.log("Search From Data:"+JSON.stringify(data));
-            updateUI("from", data);
+           await updateUI("from", data);
           }
         );
 
         new mappls.search(
           document.getElementById("toInput"),
           makePlaceOptions("to"),
-          function (data) {
+         async function (data) {
             console.log("Search To Data:"+JSON.stringify(data));
-            updateUI("to", data);
+          await  updateUI("to", data);
           }
         );
       });
