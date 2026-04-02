@@ -91,66 +91,60 @@
       src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=search"
     ></script>
     <script>
-      // Parse Mappls place search callback payload (sample uses dt.eLoc)
-      function parseELocToLatLng(eLoc) {
-        if (!eLoc) return { lat: null, lng: null };
-        if (typeof eLoc !== "string") return { lat: null, lng: null };
 
-        
-        // Common format is "lat,lng" (used by Mappls pinMarker plugin).
-        const parts = eLoc.split(",");
-        if (parts.length === 2) {
-          const lat = parseFloat(parts[0]);
-          const lng = parseFloat(parts[1]);
-
-          if (!Number.isNaN(lat) && !Number.isNaN(lng)) 
-          {
-              return { lat, lng };
-          }
-        }
-        return { lat: null, lng: null };
-      }
-
-      function updateUI(prefix, data) {
-        if (!data) return;
-      
-        // Token/auth error handling (per docs).
-        if (!Array.isArray(data) && data.error) {
-         
-          document.getElementById(prefix + "Address").textContent = "Error: " + data.error;
-          // Attempt token refresh if SDK supports it.
-          if (typeof mappls?.setToken === "function") {
-            try {
-              mappls.setToken();
-            } catch (e) {
-              // Ignore; token may require user-side handling.
+     // Fetch lat/lng from eLoc using Mappls Place Detail API
+async function fetchLatLngFromELoc(eLoc) {
+    const token = "frhibvtklfeaugvhceigifzarpjstrvqpvxb"; // your token
+    const url = `https://atlas.mappls.com/api/places/geocode?region=IND&itemCount=1&eLoc=${eLoc}`;
+    
+    try {
+        const res = await fetch(url, {
+            headers: {
+                "Authorization": "bearer " + token
             }
-          }
-          return;
+        });
+        const json = await res.json();
+        console.log("Place Detail Response:", JSON.stringify(json));
+
+        // Response structure: json.eLoc[0] or json.parsedLocations[0]
+        const place = json?.eLoc?.[0] || json?.parsedLocations?.[0];
+        if (place) {
+            return {
+                lat: place.latitude ?? place.lat ?? null,
+                lng: place.longitude ?? place.lng ?? null
+            };
         }
+    } catch (e) {
+        console.error("Error fetching place detail:", e);
+    }
+    return { lat: null, lng: null };
+}
 
-        // In Mappls sample, callback receives `data` where `data[0]` holds details.
-        const dt = Array.isArray(data) ? data[0] : data;
-        if (!dt) return;
-      
-         console.log("UpdateUI-dt:"+JSON.stringify(dt));
-         console.log("UpdateUI-data:"+JSON.stringify(data));
-        console.log("UpdateUI-eLoc:"+ dt.eLoc);
+async function updateUI(prefix, data) {
+    if (!data) return;
 
-        const eLoc = dt.eLoc || "";
-        const { lat, lng } = parseELocToLatLng(eLoc);
+    const dt = Array.isArray(data) ? data[0] : data;
+    if (!dt) return;
 
-        document.getElementById(prefix + "ELoc").value = eLoc;
-        document.getElementById(prefix + "Lat").textContent = lat == null ? "-" : lat;
-        document.getElementById(prefix + "Lng").textContent = lng == null ? "-" : lng;
+    const eLoc = dt.eLoc || "";
 
-        const placeText = dt.placeName
-          ? dt.placeName + (dt.placeAddress ? " , " + dt.placeAddress : "")
-          : dt.placeAddress ? dt.placeAddress : "";
+    // Update address immediately
+    const placeText = dt.placeName
+        ? dt.placeName + (dt.placeAddress ? ", " + dt.placeAddress : "")
+        : dt.placeAddress || "";
 
-        document.getElementById(prefix + "Address").textContent =
-          placeText || (eLoc ? "Selected." : "-");
-      }
+    document.getElementById(prefix + "Address").textContent = placeText || (eLoc ? "Selected." : "-");
+    document.getElementById(prefix + "ELoc").value = eLoc;
+    document.getElementById(prefix + "Lat").textContent = "loading...";
+    document.getElementById(prefix + "Lng").textContent = "loading...";
+
+    // Fetch lat/lng via second call
+    if (eLoc) {
+        const { lat, lng } = await fetchLatLngFromELoc(eLoc);
+        document.getElementById(prefix + "Lat").textContent = lat ?? "N/A";
+        document.getElementById(prefix + "Lng").textContent = lng ?? "N/A";
+    }
+}
 
       window.addEventListener("DOMContentLoaded", function () {
         // Place options: location is used as radial bias (not restriction).
