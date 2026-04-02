@@ -102,7 +102,8 @@
         map.addListener('load',function(){
                 /*getPinDetails plugin initialization*/
                 mappls.getPinDetails({
-                    pin: eLoc
+                  map:[],
+                  pin: eLoc
                 },callback);
                 function callback(data) {
                     obj=data;
