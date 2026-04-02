@@ -90,27 +90,13 @@
     <script
       src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=search"
     ></script>
-    <script src="https://sdk.mappls.com/map/sdk/plugins?access_token=frhibvtklfeaugvhceigifzarpjstrvqpvxb&v=3.0&libraries=getPinDetails"></script>
-
     <script>
-      let obj;
       // Parse Mappls place search callback payload (sample uses dt.eLoc)
       function parseELocToLatLng(eLoc) {
         if (!eLoc) return { lat: null, lng: null };
         if (typeof eLoc !== "string") return { lat: null, lng: null };
 
-        map.addListener('load',function(){
-                /*getPinDetails plugin initialization*/
-                mappls.getPinDetails({
-                  map:[],
-                  pin: eLoc
-                },callback);
-                function callback(data) {
-                    obj=data;
-                   console.log("parseELocToLatLng-obj:"+obj);
-                }
-            });
-
+        
         // Common format is "lat,lng" (used by Mappls pinMarker plugin).
         const parts = eLoc.split(",");
         if (parts.length === 2) {
