@@ -83,39 +83,37 @@
 
       // ✅ Step 2: After search returns eLoc, use pinMarker to resolve lat/lng
       function resolveLatLng(eLoc, prefix) {
-        document.getElementById(prefix + 'Lat').textContent = 'resolving...';
-        document.getElementById(prefix + 'Lng').textContent = 'resolving...';
+    document.getElementById(prefix + 'Lat').textContent = 'resolving...';
+    document.getElementById(prefix + 'Lng').textContent = 'resolving...';
 
-        mappls.pinMarker(
-          {
-            map: map,
-            pin: eLoc,       // eLoc like "W8G25V"
-          },
-          function (markerData) {
-             console.log("pinMarker callback raw:", markerData);
+
+    // It still resolves eLoc to coordinates via the API
+    mappls.pinMarker(
+        { pin: eLoc },          // no map property
+        function (markerData) {
+            console.log("pinMarker callback raw:", markerData);
+
             if (!markerData) return;
 
-            // pinMarker callback returns array; each item has position with lat/lng
             var item = Array.isArray(markerData) ? markerData[0] : markerData;
 
-            // position is returned as {lat, lng} or as geoJSON coordinates
-            var lat = item?.position?.lat
-                   ?? item?.lat
-                   ?? item?.geometry?.coordinates?.[1]
-                   ?? null;
+            console.log("item keys:", Object.keys(item));
+            console.log("item.position:", item?.position);
 
-            var lng = item?.position?.lng
-                   ?? item?.lng
-                   ?? item?.geometry?.coordinates?.[0]
-                   ?? null;
+            var lngLat = typeof item?.getLngLat === 'function'
+                ? item.getLngLat()
+                : item?.position ?? item?._lngLat ?? null;
 
-            console.log("Resolved lat/lng:", lat, lng);
+            var lat = lngLat?.lat ?? item?.lat ?? null;
+            var lng = lngLat?.lng ?? item?.lng ?? null;
+
+            console.log("Resolved:", lat, lng);
 
             document.getElementById(prefix + 'Lat').textContent = lat ?? 'N/A';
             document.getElementById(prefix + 'Lng').textContent = lng ?? 'N/A';
-          }
-        );
-      }
+        }
+    );
+}
 
       // ✅ Step 3: Search boxes — same as before, just call resolveLatLng after
       function initSearchBoxes() {
